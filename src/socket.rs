@@ -26,7 +26,7 @@ const POLL_TIMEOUT: i32 = 0; // Busy polling
 #[derive(Debug)]
 pub struct Socket<'a, T: std::default::Default + std::marker::Copy> {
     umem: Arc<Umem<'a, T>>,
-    socket: Box<xsk_socket>,
+    pub socket: Box<xsk_socket>,
     if_name_c: CString,
 }
 
@@ -34,7 +34,7 @@ pub struct Socket<'a, T: std::default::Default + std::marker::Copy> {
 #[derive(Debug)]
 pub struct SocketRx<'a, T: std::default::Default + std::marker::Copy> {
     socket: Arc<Socket<'a, T>>,
-    fd: std::os::raw::c_int,
+    pub fd: std::os::raw::c_int,
     rx: Box<xsk_ring_cons>,
 }
 // SocketRx is not Send by default because of the *mut u32 in xsk_ring_cons. According to the Rustonomicon,
@@ -46,7 +46,7 @@ unsafe impl<'a, T: std::default::Default + std::marker::Copy> Send for SocketRx<
 #[derive(Debug)]
 pub struct SocketTx<'a, T: std::default::Default + std::marker::Copy> {
     socket: Arc<Socket<'a, T>>,
-    fd: std::os::raw::c_int,
+    pub fd: std::os::raw::c_int,
     tx: Box<xsk_ring_prod>,
 }
 // SocketTx is not Send by default because of the *mut u32 in xsk_ring_prod. According to the Rustonomicon,
@@ -99,6 +99,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
         rx_ring_size: u32,
         tx_ring_size: u32,
         options: SocketOptions,
+        libbpf_flags: u32,
     ) -> Result<(Arc<Socket<'a, T>>, SocketRx<'a, T>, SocketTx<'a, T>), SocketNewError> {
         // Verify that the passed ring sizes are a power of two.
         // https://www.kernel.org/doc/html/latest/networking/af_xdp.html
@@ -111,7 +112,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
             tx_size: tx_ring_size,
             xdp_flags: XDP_FLAGS_UPDATE_IF_NOEXIST,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
-            libbpf_flags: 0,
+            libbpf_flags,
             __bindgen_padding_0: Default::default(),
         };
 
@@ -180,6 +181,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
         queue: usize,
         rx_ring_size: u32,
         options: SocketOptions,
+        libbpf_flags: u32
     ) -> Result<(Arc<Socket<'a, T>>, SocketRx<'a, T>), SocketNewError> {
         // Verify that the passed ring size is a power of two.
         // https://www.kernel.org/doc/html/latest/networking/af_xdp.html
@@ -192,7 +194,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
             tx_size: 0,
             xdp_flags: XDP_FLAGS_UPDATE_IF_NOEXIST,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
-            libbpf_flags: 0,
+            libbpf_flags,
             __bindgen_padding_0: Default::default(),
         };
 
@@ -255,6 +257,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
         queue: usize,
         tx_ring_size: u32,
         options: SocketOptions,
+        libbpf_flags: u32
     ) -> Result<(Arc<Socket<'a, T>>, SocketTx<'a, T>), SocketNewError> {
         // Verify that the passed ring size is a power of two.
         // https://www.kernel.org/doc/html/latest/networking/af_xdp.html
@@ -267,7 +270,7 @@ impl<'a, T: std::default::Default + std::marker::Copy> Socket<'a, T> {
             tx_size: tx_ring_size,
             xdp_flags: XDP_FLAGS_UPDATE_IF_NOEXIST,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
-            libbpf_flags: 0,
+            libbpf_flags,
             __bindgen_padding_0: Default::default(),
         };
 
@@ -591,6 +594,7 @@ mod tests {
             rx_ring_size,
             tx_ring_size,
             options,
+            0
         );
         match r {
             Err(SocketNewError::RingNotPowerOfTwo) => {
@@ -615,6 +619,7 @@ mod tests {
             rx_ring_size,
             tx_ring_size,
             options,
+            0
         );
         match r {
             Err(SocketNewError::RingNotPowerOfTwo) => {
@@ -637,6 +642,7 @@ mod tests {
             rx_ring_size,
             tx_ring_size,
             options,
+            0
         );
         match r {
             Err(SocketNewError::RingNotPowerOfTwo) => {
@@ -659,6 +665,7 @@ mod tests {
             rx_ring_size,
             tx_ring_size,
             options,
+            0
         );
         match r {
             Err(SocketNewError::RingNotPowerOfTwo) => {
